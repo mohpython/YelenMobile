@@ -1,56 +1,63 @@
-# Welcome to your Expo app 👋
+# Yelen Service — application mobile
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Application Android / iOS de la boutique Yelen Service, construite avec
+**Expo (React Native)**. Elle consomme la même API et la même base de données
+que la boutique web `YelenV3` : un produit créé dans le back-office apparaît
+immédiatement dans l'application.
 
-## Get started
+## Ce que fait l'application
 
-1. Install dependencies
+- **Boutique** : catalogue, recherche, filtres par catégorie, fiche produit.
+- **Panier** : conservé sur l'appareil, même après fermeture de l'application.
+- **Commande** : enregistrée en base *puis* envoyée sur WhatsApp, comme sur le
+  site. Livraison gratuite à Bamako, frais régionaux selon la zone.
+- **Compte client** : création avec nom + numéro WhatsApp + code à 4 chiffres,
+  connexion, adresse par défaut, changement de code.
+- **Mes commandes** : historique et suivi daté (en attente → confirmée → en
+  préparation → en cours de livraison → livrée).
 
-   ```bash
-   npm install
-   ```
+## Démarrage
 
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+L'API doit tourner : `cd ../YelenV3 && pnpm dev` (port 3010).
 
 ```bash
-npm run reset-project
+pnpm install
+pnpm exec expo start          # puis « i » pour iOS, « a » pour Android
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+L'application devine l'adresse de l'API à partir du serveur Expo, donc un
+téléphone sur le même Wi-Fi fonctionne sans configuration. Pour pointer
+ailleurs (production), définir `EXPO_PUBLIC_API_URL` :
 
-### Other setup steps
+```bash
+EXPO_PUBLIC_API_URL="https://boutique.yelen.ml" pnpm exec expo start
+```
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+## Authentification
 
-## Learn more
+Le site garde la session dans un cookie ; l'application n'ayant pas de cookies,
+elle envoie l'en-tête `x-yelen-client: mobile` et reçoit un **jeton** qu'elle
+range dans le trousseau sécurisé de l'appareil (`expo-secure-store`). Le serveur
+accepte ensuite `Authorization: Bearer <jeton>`. Même code PIN, même compte
+client que sur le site.
 
-To learn more about developing your project with Expo, look at the following resources:
+## Code partagé avec le site
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+`src/lib/order-status.ts`, `phone.ts` et les formats de prix reprennent à
+l'identique ceux de `YelenV3/src/lib/`. **Toute modification doit être reportée
+des deux côtés** (libellés de statut, normalisation des numéros).
 
-## Join the community
+## Compiler l'application
 
-Join our community of developers creating universal apps.
+Les dossiers `ios/` et `android/` sont générés et ne sont pas versionnés.
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+```bash
+pnpm exec expo run:ios        # build local (Xcode requis)
+npx eas-cli@latest build -p android --profile preview   # APK à installer
+```
+
+## Ce qui reste à faire
+
+- **Notifications push** (Firebase) pour prévenir le client des changements de
+  statut sans passer par WhatsApp.
+- Favoris, codes promo et avis clients, absents du site comme de l'application.
