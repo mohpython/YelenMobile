@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "231411373325",
+    "project_id": "yelen-sugu",
+    "storage_bucket": "yelen-sugu.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:231411373325:android:20da1fbd7ad82003fecc44",
+        "android_client_info": {
+          "package_name": "ml.yelen.boutique"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAUWKC9mhWtfBliXKR1c3r83d4_Of-ciqI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

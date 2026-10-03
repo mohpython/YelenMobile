@@ -1,7 +1,16 @@
 import * as SecureStore from "expo-secure-store";
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { api } from "./api";
 import type { AccountCustomer } from "./order-status";
+import { registerForPush, unregisterPush } from "./push";
 
 const TOKEN_KEY = "yelen.session";
 
@@ -23,6 +32,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [customer, setCustomer] = useState<AccountCustomer | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
+  // Expo push token of this device, kept so sign-out can unregister it.
+  const pushToken = useRef<string | null>(null);
 
   // A stored token survives app restarts; it is dropped if the server no
   // longer accepts it (expired, PIN changed, customer blocked).
@@ -38,6 +49,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!cancelled) {
           setToken(stored);
           setCustomer(customer);
+          // Re-register on every launch: the device token can rotate.
+          registerForPush(stored).then((t) => (pushToken.current = t));
         }
       } catch {
         await SecureStore.deleteItemAsync(TOKEN_KEY).catch(() => {});
@@ -54,6 +67,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await SecureStore.setItemAsync(TOKEN_KEY, res.token);
     setToken(res.token);
     setCustomer(res.customer);
+    // Asking for notification permission right after sign-in, when the reason
+    // for it is obvious to the customer.
+    pushToken.current = await registerForPush(res.token);
   }, []);
 
   const login = useCallback(
@@ -81,6 +97,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const logout = useCallback(async () => {
+    // Drop this device first, so the next customer on the same phone does not
+    // receive the previous one's order alerts.
+    if (token && pushToken.current) await unregisterPush(token, pushToken.current);
+    pushToken.current = null;
     await api("/account/logout", { method: "POST", token }).catch(() => {});
     await SecureStore.deleteItemAsync(TOKEN_KEY).catch(() => {});
     setToken(null);
