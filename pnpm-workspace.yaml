@@ -1,0 +1,6 @@
+# unrs-resolver (tiré par eslint-config-expo) télécharge son binaire natif dans
+# un script d'installation. pnpm les bloque par défaut et EAS en fait une erreur
+# de build, d'où cette autorisation explicite — les autres restent bloqués.
+# pnpm 11 ne lit plus ce réglage depuis package.json : il doit être ici.
+onlyBuiltDependencies:
+  - unrs-resolver
