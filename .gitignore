@@ -41,3 +41,6 @@ example
 # generated native folders
 /ios
 /android
+
+# Clé de compte de service Firebase (FCM) — secret, jamais versionné
+*-firebase-adminsdk-*.json

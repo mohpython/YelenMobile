@@ -52,6 +52,13 @@
     "notification": {
       "icon": "./assets/images/icon.png",
       "color": "#ff5000"
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "34eec3a9-732b-454a-8632-82eb873e1fe0"
+      }
+    },
+    "owner": "mohpython"
   }
 }
