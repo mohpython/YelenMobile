@@ -23,6 +23,8 @@ export default function CheckoutScreen() {
   const [form, setForm] = useState({ name: "", phone: "", address: "", city: "", notes: "" });
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [editingInfo, setEditingInfo] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
 
   useEffect(() => {
     api<DeliveryZone[]>("/zones").then(setZones).catch(() => {});
@@ -42,10 +44,19 @@ export default function CheckoutScreen() {
     }));
   }
 
-  const cities = useMemo(
-    () => [...new Set(zones.flatMap((z) => z.areas))].sort(),
-    [zones]
-  );
+  // Bamako d'abord (livraison gratuite), les régions ensuite avec leur tarif.
+  const cityGroups = useMemo(() => {
+    const paid = zones.filter((z) => z.fee > 0);
+    return {
+      bamako: [...new Set(zones.filter((z) => z.fee <= 0).flatMap((z) => z.areas))].sort(),
+      regions: [...new Set(paid.flatMap((z) => z.areas))].sort(),
+      regionFee: paid[0]?.fee ?? 0,
+    };
+  }, [zones]);
+
+  // Un client déjà connu relit ses informations au lieu de les retaper.
+  const knownCustomer =
+    !editingInfo && !!customer && !!(form.name && form.phone && form.address && form.city);
 
   const shipping = useMemo(() => {
     if (!form.city) return 0;
@@ -102,58 +113,93 @@ export default function CheckoutScreen() {
   return (
     <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
       <Card style={{ gap: 14 }}>
-        <Text style={styles.title}>Coordonnées de livraison</Text>
+        <Text style={styles.title}>Où livrer ?</Text>
 
-        <Field label="Nom complet">
-          <Input
-            value={form.name}
-            onChangeText={(name) => setForm({ ...form, name })}
-            placeholder="Ex. Aminata Sangaré"
-          />
-        </Field>
-
-        <Field label="Téléphone WhatsApp">
-          <Input
-            value={form.phone}
-            onChangeText={(phone) => setForm({ ...form, phone })}
-            placeholder="+223 92 83 97 88"
-            keyboardType="phone-pad"
-          />
-        </Field>
-
-        <Field label="Ville">
-          <View style={styles.cities}>
-            {cities.map((c) => {
-              const active = form.city === c;
-              return (
-                <Pressable
-                  key={c}
-                  onPress={() => setForm({ ...form, city: c })}
-                  style={[styles.city, active && styles.cityActive]}
-                >
-                  <Text style={[styles.cityText, active && { color: "#fff" }]}>{c}</Text>
-                </Pressable>
-              );
-            })}
+        {knownCustomer ? (
+          <View style={styles.recap}>
+            <Text style={styles.recapName}>{form.name}</Text>
+            <Text style={styles.recapLine}>{form.phone}</Text>
+            <Text style={styles.recapLine}>
+              {form.address}, {form.city}
+            </Text>
+            <Pressable onPress={() => setEditingInfo(true)}>
+              <Text style={styles.recapEdit}>Livrer ailleurs</Text>
+            </Pressable>
           </View>
-        </Field>
+        ) : (
+          <>
+            <Field label="Votre nom">
+              <Input
+                value={form.name}
+                onChangeText={(name) => setForm({ ...form, name })}
+                placeholder="Ex. Aminata Sangaré"
+              />
+            </Field>
 
-        <Field label="Adresse de livraison">
-          <Input
-            value={form.address}
-            onChangeText={(address) => setForm({ ...form, address })}
-            placeholder="Ex. Magnambougou, rue 12, porte 45"
-          />
-        </Field>
+            <Field label="Votre numéro WhatsApp">
+              <Input
+                value={form.phone}
+                onChangeText={(phone) => setForm({ ...form, phone })}
+                placeholder="+223 92 83 97 88"
+                keyboardType="phone-pad"
+              />
+            </Field>
 
-        <Field label="Notes (optionnel)" hint="Repère, horaire préféré…">
-          <Input
-            value={form.notes}
-            onChangeText={(notes) => setForm({ ...form, notes })}
-            multiline
-            style={{ minHeight: 70, textAlignVertical: "top" }}
-          />
-        </Field>
+            <Field label="Votre quartier">
+              <View style={styles.cities}>
+                {cityGroups.bamako.map((c) => (
+                  <CityButton
+                    key={c}
+                    city={c}
+                    active={form.city === c}
+                    onSelect={() => setForm({ ...form, city: c })}
+                  />
+                ))}
+              </View>
+              {cityGroups.regions.length > 0 && (
+                <View style={{ marginTop: 12, gap: 8 }}>
+                  <Text style={styles.groupLabel}>
+                    Hors de Bamako — livraison {formatFCFA(cityGroups.regionFee)}
+                  </Text>
+                  <View style={styles.cities}>
+                    {cityGroups.regions.map((c) => (
+                      <CityButton
+                        key={c}
+                        city={c}
+                        active={form.city === c}
+                        onSelect={() => setForm({ ...form, city: c })}
+                      />
+                    ))}
+                  </View>
+                </View>
+              )}
+            </Field>
+
+            <Field label="Où habitez-vous ?">
+              <Input
+                value={form.address}
+                onChangeText={(address) => setForm({ ...form, address })}
+                placeholder="Ex. Magnambougou, rue 12, porte 45"
+              />
+            </Field>
+          </>
+        )}
+
+        {showNotes ? (
+          <Field label="Précision pour le livreur">
+            <Input
+              value={form.notes}
+              onChangeText={(notes) => setForm({ ...form, notes })}
+              placeholder="Un repère près de chez vous, une heure qui vous arrange…"
+              multiline
+              style={{ minHeight: 70, textAlignVertical: "top" }}
+            />
+          </Field>
+        ) : (
+          <Pressable onPress={() => setShowNotes(true)}>
+            <Text style={styles.recapEdit}>Ajouter une précision pour le livreur</Text>
+          </Pressable>
+        )}
       </Card>
 
       <Card style={{ gap: 10 }}>
@@ -181,17 +227,36 @@ export default function CheckoutScreen() {
       {error ? <ErrorNote message={error} /> : null}
 
       <Button
-        title={busy ? "Enregistrement…" : "Envoyer la commande sur WhatsApp"}
-        variant="whatsapp"
+        title={busy ? "Enregistrement…" : "Commander"}
         busy={busy}
         onPress={submit}
+        style={{ paddingVertical: 18 }}
       />
+      <Text style={styles.footnote}>
+        WhatsApp s&apos;ouvrira pour confirmer votre commande.
+      </Text>
       {!customer && (
         <Text style={styles.footnote}>
           Créez un compte dans l&apos;onglet « Mon compte » pour suivre vos commandes.
         </Text>
       )}
     </ScrollView>
+  );
+}
+
+function CityButton({
+  city,
+  active,
+  onSelect,
+}: {
+  city: string;
+  active: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <Pressable onPress={onSelect} style={[styles.city, active && styles.cityActive]}>
+      <Text style={[styles.cityText, active && { color: "#fff" }]}>{city}</Text>
+    </Pressable>
   );
 }
 
@@ -214,5 +279,10 @@ const styles = StyleSheet.create({
   grand: { borderTopWidth: 1, borderTopColor: T.line, paddingTop: 10 },
   grandLabel: { fontSize: 16, fontWeight: "700", color: T.text },
   grandValue: { fontSize: 18, fontWeight: "800", color: T.brand },
-  footnote: { fontSize: 12, color: T.faint, textAlign: "center" },
+  footnote: { fontSize: 12, color: T.muted, textAlign: "center" },
+  groupLabel: { fontSize: 12, color: T.muted },
+  recap: { backgroundColor: "#f8fafc", borderRadius: 12, padding: 14, gap: 4 },
+  recapName: { fontSize: 16, fontWeight: "700", color: T.text },
+  recapLine: { fontSize: 14, color: T.muted },
+  recapEdit: { fontSize: 14, fontWeight: "700", color: T.brand, marginTop: 6 },
 });

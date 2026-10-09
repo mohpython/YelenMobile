@@ -30,7 +30,7 @@ export default function RootLayout() {
         >
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="produit/[id]" options={{ title: "Produit" }} />
-          <Stack.Screen name="commande" options={{ title: "Finaliser ma commande" }} />
+          <Stack.Screen name="commande" options={{ title: "Commander" }} />
         </Stack>
       </CartProvider>
     </AuthProvider>

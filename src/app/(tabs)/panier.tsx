@@ -74,7 +74,7 @@ export default function CartScreen() {
           <Text style={styles.grandLabel}>Total</Text>
           <Text style={styles.grandValue}>{formatFCFA(total + BAMAKO_SHIPPING)}</Text>
         </View>
-        <Button title="Finaliser ma commande" onPress={() => router.push("/commande")} />
+        <Button title="Commander" onPress={() => router.push("/commande")} style={{ paddingVertical: 18 }} />
       </Card>
     </ScrollView>
   );
