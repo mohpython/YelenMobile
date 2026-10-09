@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Button, Card, ErrorNote, Field, Input } from "@/components/ui";
 import { ApiError, api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -25,6 +25,7 @@ export default function CheckoutScreen() {
   const [busy, setBusy] = useState(false);
   const [editingInfo, setEditingInfo] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
+  const [cityOpen, setCityOpen] = useState(false);
 
   useEffect(() => {
     api<DeliveryZone[]>("/zones").then(setZones).catch(() => {});
@@ -145,34 +146,13 @@ export default function CheckoutScreen() {
               />
             </Field>
 
-            <Field label="Votre quartier">
-              <View style={styles.cities}>
-                {cityGroups.bamako.map((c) => (
-                  <CityButton
-                    key={c}
-                    city={c}
-                    active={form.city === c}
-                    onSelect={() => setForm({ ...form, city: c })}
-                  />
-                ))}
-              </View>
-              {cityGroups.regions.length > 0 && (
-                <View style={{ marginTop: 12, gap: 8 }}>
-                  <Text style={styles.groupLabel}>
-                    Hors de Bamako — livraison {formatFCFA(cityGroups.regionFee)}
-                  </Text>
-                  <View style={styles.cities}>
-                    {cityGroups.regions.map((c) => (
-                      <CityButton
-                        key={c}
-                        city={c}
-                        active={form.city === c}
-                        onSelect={() => setForm({ ...form, city: c })}
-                      />
-                    ))}
-                  </View>
-                </View>
-              )}
+            <Field label="Votre quartier ou ville">
+              <Pressable onPress={() => setCityOpen(true)} style={styles.select}>
+                <Text style={form.city ? styles.selectValue : styles.selectPlaceholder}>
+                  {form.city || "Choisir dans la liste…"}
+                </Text>
+                <Text style={styles.selectChevron}>⌄</Text>
+              </Pressable>
             </Field>
 
             <Field label="Où habitez-vous ?">
@@ -201,6 +181,46 @@ export default function CheckoutScreen() {
           </Pressable>
         )}
       </Card>
+
+      <Modal visible={cityOpen} animationType="slide" transparent onRequestClose={() => setCityOpen(false)}>
+        <Pressable style={styles.sheetBackdrop} onPress={() => setCityOpen(false)} />
+        <View style={styles.sheet}>
+          <Text style={styles.sheetTitle}>Où livrer ?</Text>
+          <ScrollView>
+            <Text style={styles.sheetGroup}>Bamako — livraison gratuite</Text>
+            {cityGroups.bamako.map((c) => (
+              <CityRow
+                key={c}
+                city={c}
+                active={form.city === c}
+                onSelect={() => {
+                  setForm({ ...form, city: c });
+                  setCityOpen(false);
+                }}
+              />
+            ))}
+            {cityGroups.regions.length > 0 && (
+              <>
+                <Text style={styles.sheetGroup}>
+                  Régions — livraison {formatFCFA(cityGroups.regionFee)}
+                </Text>
+                {cityGroups.regions.map((c) => (
+                  <CityRow
+                    key={c}
+                    city={c}
+                    active={form.city === c}
+                    onSelect={() => {
+                      setForm({ ...form, city: c });
+                      setCityOpen(false);
+                    }}
+                  />
+                ))}
+              </>
+            )}
+          </ScrollView>
+          <Button title="Fermer" variant="outline" onPress={() => setCityOpen(false)} />
+        </View>
+      </Modal>
 
       <Card style={{ gap: 10 }}>
         <Text style={styles.title}>Récapitulatif</Text>
@@ -244,7 +264,7 @@ export default function CheckoutScreen() {
   );
 }
 
-function CityButton({
+function CityRow({
   city,
   active,
   onSelect,
@@ -254,8 +274,11 @@ function CityButton({
   onSelect: () => void;
 }) {
   return (
-    <Pressable onPress={onSelect} style={[styles.city, active && styles.cityActive]}>
-      <Text style={[styles.cityText, active && { color: "#fff" }]}>{city}</Text>
+    <Pressable onPress={onSelect} style={styles.sheetRow}>
+      <Text style={[styles.sheetRowText, active && { color: T.brand, fontWeight: "700" }]}>
+        {city}
+      </Text>
+      {active && <Text style={{ color: T.brand, fontSize: 16 }}>✓</Text>}
     </Pressable>
   );
 }
@@ -280,7 +303,47 @@ const styles = StyleSheet.create({
   grandLabel: { fontSize: 16, fontWeight: "700", color: T.text },
   grandValue: { fontSize: 18, fontWeight: "800", color: T.brand },
   footnote: { fontSize: 12, color: T.muted, textAlign: "center" },
-  groupLabel: { fontSize: 12, color: T.muted },
+  select: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderWidth: 1,
+    borderColor: T.line,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    backgroundColor: "#fff",
+  },
+  selectValue: { fontSize: 15, color: T.text },
+  selectPlaceholder: { fontSize: 15, color: T.faint },
+  selectChevron: { fontSize: 18, color: T.muted, marginTop: -6 },
+  sheetBackdrop: { flex: 1, backgroundColor: "rgba(15,23,42,0.4)" },
+  sheet: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: T.pad,
+    gap: 8,
+    maxHeight: "70%",
+  },
+  sheetTitle: { fontSize: 17, fontWeight: "800", color: T.text },
+  sheetGroup: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: T.muted,
+    textTransform: "uppercase",
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  sheetRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: T.line,
+  },
+  sheetRowText: { fontSize: 16, color: T.text },
   recap: { backgroundColor: "#f8fafc", borderRadius: 12, padding: 14, gap: 4 },
   recapName: { fontSize: 16, fontWeight: "700", color: T.text },
   recapLine: { fontSize: 14, color: T.muted },
